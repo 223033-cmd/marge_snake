@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>マージ―スネーク - 30秒お試し版</title>
+  <style>
+    /* --- 基本スタイル --- */
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-player: #38bdf8;
+      --accent-enemy: #f43f5e;
+      --accent-star: #facc15;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 8px;
+    }
+
+    /* --- ゲーム全体コンテナ --- */
+    .game-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ヘッダー情報表示 */
+    .header-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background-color: var(--card-bg);
+      border-radius: 12px 12px 0 0;
+      border: 1px solid #334155;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .info-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+
+    .info-value {
+      font-size: 1.25rem;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-urgent {
+      color: #fb7185;
+      animation: pulse 0.5s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.1); }
+    }
+
+    /* メインキャンバス */
+    canvas {
+      background-color: #020617;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      display: block;
+      border-left: 1px solid #334155;
+      border-right: 1px solid #334155;
+      touch-action: none;
+    }
+
+    /* --- スマホ用タッチコントローラー --- */
+    .controls-bar {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      background-color: var(--card-bg);
+      border-radius: 0 0 12px 12px;
+      border: 1px solid #334155;
+      touch-action: manipulation;
+    }
+
+    .touch-btn {
+      flex: 1;
+      padding: 14px 0;
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: var(--text-main);
+      background-color: #334155;
+      border: 2px solid #475569;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: background-color 0.1s, transform 0.05s;
+    }
+
+    .touch-btn:active, .touch-btn.pressed {
+      background-color: #475569;
+      transform: scale(0.96);
+    }
+
+    .btn-boost {
+      background-color: #1e3a8a;
+      border-color: #3b82f6;
+    }
+    .btn-boost:active, .btn-boost.pressed {
+      background-color: #2563eb;
+    }
+
+    /* --- オーバーレイ画面（スタート / リザルト） --- */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+      border-radius: 12px;
+      z-index: 10;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: var(--accent-player);
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .description {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-sub);
+      margin-bottom: 20px;
+      max-width: 420px;
+    }
+
+    .guide-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 380px;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .guide-box li {
+      list-style: none;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background-color: #10b981;
+      color: white;
+      font-size: 1.2rem;
+      font-weight: bold;
+      padding: 14px 32px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+      transition: transform 0.1s, background-color 0.2s;
+    }
+
+    .action-btn:hover {
+      background-color: #059669;
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* リザルト用スコア強調 */
+    .result-score {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--accent-star);
+      margin: 12px 0;
+    }
+
+    .result-reason {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #f43f5e;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <!-- 上部ステータス表示 -->
+    <div class="header-bar">
+      <div class="info-item">
+        <span class="info-label">残り時間</span>
+        <span id="timeDisplay" class="info-value">30s</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">得点</span>
+        <span id="scoreDisplay" class="info-value">0</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">体の長さ</span>
+        <span id="lengthDisplay" class="info-value">10</span>
+      </div>
+    </div>
+
+    <!-- 描画用キャンバス -->
+    <canvas id="gameCanvas" width="600" height="450"></canvas>
+
+    <!-- タッチ操作ボタン -->
+    <div class="controls-bar">
+      <button id="btnLeft" class="touch-btn">◀ 画面左へ</button>
+      <button id="btnBoost" class="touch-btn btn-boost">⚡ 加速</button>
+      <button id="btnRight" class="touch-btn">画面右へ ▶</button>
+    </div>
+
+    <!-- スタート画面（オーバーレイ） -->
+    <div id="startOverlay" class="overlay">
+      <h1 class="title">🐍 マージ―スネーク</h1>
+      <p class="description">敵を避けながらキラキラを集めよう！大きくなるほど迫力アップ！</p>
+      
+      <div class="guide-box">
+        <ul>
+          <li><strong>【操作】</strong> PC: 左右キー / A・D（画面の左/右へ進行） + スペース（加速）</li>
+          <li><strong>【操作】</strong> スマホ: 画面下の「◀ 画面左へ」「画面右へ ▶」「⚡」ボタン</li>
+          <li><strong>【★ キラキラ】</strong> 集めると得点UP & 体が大きくなる！</li>
+          <li><strong>【▲ あなた】</strong> 頭の▲が印。<strong>✖ 敵のからだ</strong> にぶつかると終了！</li>
+        </ul>
+      </div>
+
+      <button id="startBtn" class="action-btn">ゲームスタート (30秒)</button>
+    </div>
+
+    <!-- リザルト画面（オーバーレイ） -->
+    <div id="resultOverlay" class="overlay hidden">
+      <h2 id="resultTitle" class="title">ゲーム終了</h2>
+      <div id="resultReason" class="result-reason">敵にぶつかりました！</div>
+      <p class="description">獲得した得点</p>
+      <div id="finalScore" class="result-score">0</div>
+      <button id="restartBtn" class="action-btn">もう一度遊ぶ</button>
+    </div>
+  </div>
+
+  <script>
+    /* --- ゲーム設定と状態管理 --- */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI要素
+    const timeDisplay = document.getElementById('timeDisplay');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const lengthDisplay = document.getElementById('lengthDisplay');
+    const startOverlay = document.getElementById('startOverlay');
+    const resultOverlay = document.getElementById('resultOverlay');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultReason = document.getElementById('resultReason');
+    const finalScore = document.getElementById('finalScore');
+
+    // ボタン類
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnBoost = document.getElementById('btnBoost');
+
+    // キー入力状態
+    const keys = { left: false, right: false, boost: false };
+
+    // ゲーム変数
+    let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+    let score = 0;
+    let timeLeft = 30;
+    let timerInterval = null;
+    let animationFrameId = null;
+
+    // Web Audio API（効果音生成用）
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      const now = audioCtx.currentTime;
+
+      if (type === 'star') {
+        // キラキラ獲得音
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.15); // C6
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'hit') {
+        // 敵衝突音
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.linearRampToValueAtTime(40, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'timeup') {
+        // タイムアップ音
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+    }
+
+    /* --- スネーク & アイテムクラス --- */
+
+    // プレイヤー蛇
+    class PlayerSnake {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.x = canvas.width / 2;
+        this.y = canvas.height / 2 + 80;
+        this.angle = -Math.PI / 2; // 上向き
+        this.baseRadius = 10;
+        this.radius = 10; // 成長で太くなる
+        this.speed = 2.5;
+        this.turnSpeed = 0.08;
+        this.body = []; // 過去の頭部位置情報 [{x, y}]
+        this.bodyLength = 15; // 節の数
+        this.segmentSpacing = 5; // 節同士の間隔（フレーム数）
+
+        // 初期体を生成
+        for (let i = 0; i < this.bodyLength * this.segmentSpacing; i++) {
+          this.body.push({ x: this.x, y: this.y + i * (this.speed / 2) });
+        }
+      }
+
+      update() {
+        // 画面基準の左右旋回制御
+        if (keys.left || keys.right) {
+          // 左キーなら画面左方向（180度 = Math.PI）、右キーなら画面右方向（0度）を目標角度に設定
+          const targetAngle = keys.left ? Math.PI : 0;
+          
+          // 現在の角度と目標角度の差分を -π ～ +π の範囲に正規化
+          let diff = targetAngle - this.angle;
+          diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+
+          // 目標角度に向けてスムーズに旋回
+          if (Math.abs(diff) < this.turnSpeed) {
+            this.angle = targetAngle;
+          } else {
+            this.angle += Math.sign(diff) * this.turnSpeed;
+          }
+        }
+
+        // 加速判定
+        const currentSpeed = keys.boost ? this.speed * 1.8 : this.speed;
+
+        // 前進移動
+        this.x += Math.cos(this.angle) * currentSpeed;
+        this.y += Math.sin(this.angle) * currentSpeed;
+
+        // 画面外ワープ（壁で死なない仕様で爽快感確保）
+        if (this.x < 0) this.x = canvas.width;
+        if (this.x > canvas.width) this.x = 0;
+        if (this.y < 0) this.y = canvas.height;
+        if (this.y > canvas.height) this.y = 0;
+
+        // 頭部位置を体に記録
+        this.body.unshift({ x: this.x, y: this.y });
+
+        // 不要な古い位置情報を削除
+        const maxHistory = this.bodyLength * this.segmentSpacing;
+        if (this.body.length > maxHistory) {
+          this.body.pop();
+        }
+      }
+
+      grow() {
+        this.bodyLength += 4; // 体が長くなる
+        this.radius = Math.min(22, this.baseRadius + (this.bodyLength - 15) * 0.25); // 太さも少しUP
+      }
+
+      draw() {
+        // 身体の描画（後ろから順番に描く）
+        for (let i = this.bodyLength - 1; i >= 1; i--) {
+          const index = i * this.segmentSpacing;
+          if (index >= this.body.length) continue;
+
+          const pos = this.body[index];
+          // 後ろに行くほど少し小さく
+          const r = Math.max(4, this.radius * (1 - (i / this.bodyLength) * 0.3));
+
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fill();
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // 頭部の描画（青色＋識別用の▲マーク）
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        // 頭の円
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius + 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#0284c7';
+        ctx.fill();
+
+        // 色以外の識別マーク「▲」（進行方向を指す）
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(12, this.radius * 1.2)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('▲', 2, 0);
+
+        ctx.restore();
+      }
+    }
+
+    // 敵蛇
+    class EnemySnake {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.x = canvas.width / 2;
+        this.y = 100;
+        this.angle = Math.PI / 2; // 下向き
+        this.radius = 12;
+        this.speed = 2.0;
+        this.turnSpeed = 0.04;
+        this.body = [];
+        this.bodyLength = 22;
+        this.segmentSpacing = 5;
+        this.changeDirTimer = 0;
+
+        for (let i = 0; i < this.bodyLength * this.segmentSpacing; i++) {
+          this.body.push({ x: this.x, y: this.y - i * (this.speed / 2) });
+        }
+      }
+
+      update() {
+        // 定期的にランダムで少し向きを変えるAI
+        this.changeDirTimer++;
+        if (this.changeDirTimer > 40) {
+          this.angle += (Math.random() - 0.5) * 1.5;
+          this.changeDirTimer = 0;
+        }
+
+        // 壁近くなら中央に戻るように旋回
+        const margin = 50;
+        if (this.x < margin || this.x > canvas.width - margin || this.y < margin || this.y > canvas.height - margin) {
+          const angleToCenter = Math.atan2(canvas.height / 2 - this.y, canvas.width / 2 - this.x);
+          this.angle += (angleToCenter - this.angle) * 0.1;
+        }
+
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+
+        this.body.unshift({ x: this.x, y: this.y });
+        if (this.body.length > this.bodyLength * this.segmentSpacing) {
+          this.body.pop();
+        }
+      }
+
+      draw() {
+        // 敵の体の描画（赤色 ＋ 各節に識別マーク「✖」）
+        for (let i = this.bodyLength - 1; i >= 0; i--) {
+          const index = i * this.segmentSpacing;
+          if (index >= this.body.length) continue;
+
+          const pos = this.body[index];
+
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#f43f5e';
+          ctx.fill();
+          ctx.strokeStyle = '#9f1239';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // 識別用「✖」模様（文字識別で色覚バリアフリー化）
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('✖', pos.x, pos.y);
+        }
+      }
+    }
+
+    // キラキラアイテム
+    class StarItem {
+      constructor() {
+        this.x = 0;
+        this.y = 0;
+        this.radius = 12;
+        this.spawn();
+      }
+
+      spawn() {
+        const margin = 40;
+        this.x = margin + Math.random() * (canvas.width - margin * 2);
+        this.y = margin + Math.random() * (canvas.height - margin * 2);
+      }
+
+      draw() {
+        // 輝くアニメーション
+        const scale = 1 + Math.sin(Date.now() * 0.008) * 0.15;
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(scale, scale);
+
+        // 外側の光輪
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+        ctx.fill();
+
+        // アイテム本体「★」
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('★', 0, 0);
+
+        ctx.restore();
+      }
+    }
+
+    /* --- ゲームインスタンス --- */
+    const player = new PlayerSnake();
+    const enemy = new EnemySnake();
+    const star = new StarItem();
+
+    /* --- 入力イベント登録 --- */
+
+    // キーボード操作
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        keys.boost = true;
+        e.preventDefault(); // スクロール防止
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+      if (e.key === ' ' || e.key === 'Spacebar') keys.boost = false;
+    });
+
+    // タッチ/マウスボタン操作の統一リスナー関数
+    function setupTouchButton(btn, keyProp) {
+      const start = (e) => {
+        e.preventDefault();
+        initAudio();
+        keys[keyProp] = true;
+        btn.classList.add('pressed');
+      };
+      const end = (e) => {
+        e.preventDefault();
+        keys[keyProp] = false;
+        btn.classList.remove('pressed');
+      };
+
+      btn.addEventListener('touchstart', start, { passive: false });
+      btn.addEventListener('touchend', end, { passive: false });
+      btn.addEventListener('mousedown', start);
+      btn.addEventListener('mouseup', end);
+      btn.addEventListener('mouseleave', end);
+    }
+
+    setupTouchButton(btnLeft, 'left');
+    setupTouchButton(btnRight, 'right');
+    setupTouchButton(btnBoost, 'boost');
+
+    // ボタンクリック
+    startBtn.addEventListener('click', () => {
+      initAudio();
+      startGame();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      initAudio();
+      startGame();
+    });
+
+    /* --- メインルール & ループ --- */
+
+    function startGame() {
+      gameState = 'PLAYING';
+      score = 0;
+      timeLeft = 30;
+
+      // オブジェクトとステータスの完全リセット
+      player.reset();
+      enemy.reset();
+      star.spawn();
+
+      updateUI();
+      startOverlay.classList.add('hidden');
+      resultOverlay.classList.add('hidden');
+
+      // 30秒カウントダウンタイマー
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateUI();
+
+        if (timeLeft <= 0) {
+          endGame('TIME_UP');
+        }
+      }, 1000);
+
+      // ゲームループの開始
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      gameLoop();
+    }
+
+    function updateUI() {
+      timeDisplay.textContent = `${timeLeft}s`;
+      scoreDisplay.textContent = score;
+      lengthDisplay.textContent = player.bodyLength;
+
+      if (timeLeft <= 5) {
+        timeDisplay.classList.add('time-urgent');
+      } else {
+        timeDisplay.classList.remove('time-urgent');
+      }
+    }
+
+    function checkCollisions() {
+      // 1. プレイヤー頭部とキラキラ（★）の判定
+      const distToStar = Math.hypot(player.x - star.x, player.y - star.y);
+      if (distToStar < player.radius + star.radius) {
+        score += 100;
+        player.grow();
+        star.spawn();
+        playSound('star');
+        updateUI();
+      }
+
+      // 2. プレイヤー頭部と敵の全節（✖）の判定
+      for (let i = 0; i < enemy.bodyLength; i++) {
+        const index = i * enemy.segmentSpacing;
+        if (index >= enemy.body.length) continue;
+
+        const enemyPos = enemy.body[index];
+        const distToEnemy = Math.hypot(player.x - enemyPos.x, player.y - enemyPos.y);
+
+        // 衝突判定（頭と体の接触）
+        if (distToEnemy < player.radius + enemy.radius * 0.8) {
+          playSound('hit');
+          endGame('ENEMY_HIT');
+          return;
+        }
+      }
+    }
+
+    function endGame(reason) {
+      gameState = 'GAMEOVER';
+      clearInterval(timerInterval);
+
+      if (reason === 'ENEMY_HIT') {
+        resultTitle.textContent = '💥 ゲームオーバー';
+        resultReason.textContent = '敵のからだ（✖）にぶつかってしまった！';
+      } else if (reason === 'TIME_UP') {
+        playSound('timeup');
+        resultTitle.textContent = '⏱ タイムアップ！';
+        resultReason.textContent = '30秒間みごと生き残った！';
+      }
+
+      finalScore.textContent = score;
+      resultOverlay.classList.remove('hidden');
+    }
+
+    function gameLoop() {
+      if (gameState !== 'PLAYING') return;
+
+      // 更新
+      player.update();
+      enemy.update();
+      checkCollisions();
+
+      // 描画
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 背景グリッド描画（移動感の演出）
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // 各要素描画
+      star.draw();
+      enemy.draw();
+      player.draw();
+
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+  </script>
+</body>
+</html>
